@@ -1,0 +1,732 @@
+<html><head></head><body><div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a href="https://github.com/4front/express-request-proxy">express-request-proxy (v2.0.0)</a>
+</h1>
+<h4>Intelligent http proxy Express middleware</h4>
+<div class="apidocSectionDiv"><a href="#apidoc.tableOfContents" id="apidoc.tableOfContents"><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.express-request-proxy">module express-request-proxy</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.express-request-proxy">
+            function <span class="apidocSignatureSpan"></span>express-request-proxy
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.proxy">
+            function <span class="apidocSignatureSpan">express-request-proxy.</span>proxy
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.request_options">
+            function <span class="apidocSignatureSpan">express-request-proxy.</span>request_options
+            <span class="apidocSignatureSpan">(req, options, limits)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.toString">
+            function <span class="apidocSignatureSpan">express-request-proxy.</span>toString
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.express-request-proxy.request_options">module express-request-proxy.request_options</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.request_options.request_options">
+            function <span class="apidocSignatureSpan">express-request-proxy.</span>request_options
+            <span class="apidocSignatureSpan">(req, options, limits)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.express-request-proxy.toString">module express-request-proxy.toString</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.express-request-proxy.toString.toString">
+            function <span class="apidocSignatureSpan">express-request-proxy.</span>toString
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.express-request-proxy" id="apidoc.module.express-request-proxy">module express-request-proxy</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.express-request-proxy" id="apidoc.element.express-request-proxy.express-request-proxy">
+        function <span class="apidocSignatureSpan"></span>express-request-proxy
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">express-request-proxy = function (options) {
+  options = _.defaults(options || {}, {
+    ensureAuthenticated: false,
+    cache: null,
+    cacheMaxAge: 0,
+    userAgent: 'express-request-proxy',
+    cacheHttpHeader: 'Express-Request-Proxy-Cache',
+    cacheKeyFn: null,
+    timeout: 5000,
+    maxRedirects: 5,
+    gzip: true,
+    originalQuery: false
+  });
+
+  return function(req, res, next) {
+    var method = req.method.toUpperCase();
+
+    // Allow for a global cache to be specified on the parent Express app
+    if (!options.cache) {
+      options.cache = req.app.settings.cache;
+    }
+
+    if (!req.ext) {
+      req.ext = {};
+    }
+
+    req.ext.requestHandler = 'express-request-proxy';
+
+    if (options.ensureAuthenticated === true) {
+      // Look for the isAuthenticated function which PassportJS defines. Some other authentication
+      // method can be used, but it needs to define the isAuthenicated function.
+      if (req.ext.isAuthenticated !== true) {
+        debug('user is not authenticated');
+        return next(Error.http(401, 'User must be authenticated to invoke this API endpoint'));
+      }
+    }
+
+    if (method.toUpperCase() === 'GET' &amp;&amp; options.cache &amp;&amp; options.cacheMaxAge &gt; 0) {
+      if (!options.cache) return next(new Error('No cache provider configured'));
+
+      return proxyViaCache(req, res, next);
+    }
+
+    makeApiCall(req, res, next);
+  };
+
+  function makeApiCall(req, res, next) {
+    var apiRequestOptions;
+    try {
+      apiRequestOptions = requestOptions(req, options);
+    } catch (err) {
+      debug('error building request options %s', err.stack);
+      return next(Error.http(400, err.message));
+    }
+
+    debug('making %s call to %s', apiRequestOptions.method, apiRequestOptions.url);
+
+    // If the req has a body, pipe it into the proxy request
+    var apiRequest;
+    if (is.hasBody(req)) {
+      debug('piping req body to remote http endpoint');
+      apiRequest = req.pipe(request(apiRequestOptions));
+    } else {
+      apiRequest = request(apiRequestOptions);
+    }
+
+    apiRequest.on('error', function(err) {
+      unhandledApiError(err, next);
+    });
+
+    // Defer piping the response until the response event so we can
+    // check the status code.
+    apiRequest.on('response', function(resp) {
+      // Do not attempt to apply transforms to error responses
+      if (resp.statusCode &gt;= 400) {
+        debug('Received error %s from %s', resp.statusCode, apiRequestOptions.url);
+        return apiRequest.pipe(res);
+      }
+
+      if (_.isArray(options.transforms)) {
+        apiRequest = applyTransforms(apiRequest, options.transforms, resp.headers);
+      }
+
+      // Need to explicitly passthrough headers, otherwise they will get lost
+      // in the transforms pipe.
+      for (var key in resp.headers) {
+        if (_.includes(discardApiResponseHeaders, key) === false) {
+          res.set(key, resp.headers[key]);
+        }
+      }
+
+      apiRequest.pipe(res);
+    });
+  }
+
+  function proxyViaCache(req, res, next) {
+    var apiRequestOptions;
+    try {
+      apiRequestOptions = requestOptions(req, options);
+    } catch (err) {
+      debug('error building request options %s', err.stack);
+      return next(Error.http(400, err.message));
+    }
+
+    var cacheKey;
+    if (_.isFunction(options.cacheKeyFn)) {
+      cacheKey = options.cacheKeyFn(req, apiRequestOptions);
+    } else {
+      cacheKey = apiRequestOptions.url;
+    }
+
+    // Try retrieving from the cache
+    debug('checking if key %s exists in cache', cacheKey);
+    options.cache.exists(cacheKey, function(err, exists) {
+      if (err) return next(err);
+
+      debug('api response exists in cache=%s', exists);
+      if (exists) {
+        debug('api response exists in cache');
+        return pipeToResponseFromCache(cacheKey, req, res, next);
+      }
+
+      debug('key %s not in cache', cacheKey);
+
+      res.set('Cache-Control', 'max-age=' + options.cacheMaxAge);
+      res.set(options.cacheHttpHeader, 'miss');
+
+      debug('making %s request to %s', apiRequestOptions.method, apiRequestOptions.url);
+
+      var apiRequest = request(apiRequestOptions);
+      apiRequest.on('error', func ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.proxy" id="apidoc.element.express-request-proxy.proxy">
+        function <span class="apidocSignatureSpan">express-request-proxy.</span>proxy
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">proxy = function (options) {
+  options = _.defaults(options || {}, {
+    ensureAuthenticated: false,
+    cache: null,
+    cacheMaxAge: 0,
+    userAgent: 'express-request-proxy',
+    cacheHttpHeader: 'Express-Request-Proxy-Cache',
+    cacheKeyFn: null,
+    timeout: 5000,
+    maxRedirects: 5,
+    gzip: true,
+    originalQuery: false
+  });
+
+  return function(req, res, next) {
+    var method = req.method.toUpperCase();
+
+    // Allow for a global cache to be specified on the parent Express app
+    if (!options.cache) {
+      options.cache = req.app.settings.cache;
+    }
+
+    if (!req.ext) {
+      req.ext = {};
+    }
+
+    req.ext.requestHandler = 'express-request-proxy';
+
+    if (options.ensureAuthenticated === true) {
+      // Look for the isAuthenticated function which PassportJS defines. Some other authentication
+      // method can be used, but it needs to define the isAuthenicated function.
+      if (req.ext.isAuthenticated !== true) {
+        debug('user is not authenticated');
+        return next(Error.http(401, 'User must be authenticated to invoke this API endpoint'));
+      }
+    }
+
+    if (method.toUpperCase() === 'GET' &amp;&amp; options.cache &amp;&amp; options.cacheMaxAge &gt; 0) {
+      if (!options.cache) return next(new Error('No cache provider configured'));
+
+      return proxyViaCache(req, res, next);
+    }
+
+    makeApiCall(req, res, next);
+  };
+
+  function makeApiCall(req, res, next) {
+    var apiRequestOptions;
+    try {
+      apiRequestOptions = requestOptions(req, options);
+    } catch (err) {
+      debug('error building request options %s', err.stack);
+      return next(Error.http(400, err.message));
+    }
+
+    debug('making %s call to %s', apiRequestOptions.method, apiRequestOptions.url);
+
+    // If the req has a body, pipe it into the proxy request
+    var apiRequest;
+    if (is.hasBody(req)) {
+      debug('piping req body to remote http endpoint');
+      apiRequest = req.pipe(request(apiRequestOptions));
+    } else {
+      apiRequest = request(apiRequestOptions);
+    }
+
+    apiRequest.on('error', function(err) {
+      unhandledApiError(err, next);
+    });
+
+    // Defer piping the response until the response event so we can
+    // check the status code.
+    apiRequest.on('response', function(resp) {
+      // Do not attempt to apply transforms to error responses
+      if (resp.statusCode &gt;= 400) {
+        debug('Received error %s from %s', resp.statusCode, apiRequestOptions.url);
+        return apiRequest.pipe(res);
+      }
+
+      if (_.isArray(options.transforms)) {
+        apiRequest = applyTransforms(apiRequest, options.transforms, resp.headers);
+      }
+
+      // Need to explicitly passthrough headers, otherwise they will get lost
+      // in the transforms pipe.
+      for (var key in resp.headers) {
+        if (_.includes(discardApiResponseHeaders, key) === false) {
+          res.set(key, resp.headers[key]);
+        }
+      }
+
+      apiRequest.pipe(res);
+    });
+  }
+
+  function proxyViaCache(req, res, next) {
+    var apiRequestOptions;
+    try {
+      apiRequestOptions = requestOptions(req, options);
+    } catch (err) {
+      debug('error building request options %s', err.stack);
+      return next(Error.http(400, err.message));
+    }
+
+    var cacheKey;
+    if (_.isFunction(options.cacheKeyFn)) {
+      cacheKey = options.cacheKeyFn(req, apiRequestOptions);
+    } else {
+      cacheKey = apiRequestOptions.url;
+    }
+
+    // Try retrieving from the cache
+    debug('checking if key %s exists in cache', cacheKey);
+    options.cache.exists(cacheKey, function(err, exists) {
+      if (err) return next(err);
+
+      debug('api response exists in cache=%s', exists);
+      if (exists) {
+        debug('api response exists in cache');
+        return pipeToResponseFromCache(cacheKey, req, res, next);
+      }
+
+      debug('key %s not in cache', cacheKey);
+
+      res.set('Cache-Control', 'max-age=' + options.cacheMaxAge);
+      res.set(options.cacheHttpHeader, 'miss');
+
+      debug('making %s request to %s', apiRequestOptions.method, apiRequestOptions.url);
+
+      var apiRequest = request(apiRequestOptions);
+      apiRequest.on('error', func ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.request_options" id="apidoc.element.express-request-proxy.request_options">
+        function <span class="apidocSignatureSpan">express-request-proxy.</span>request_options
+        <span class="apidocSignatureSpan">(req, options, limits)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">request_options = function (req, options, limits) {
+  var requestOptions = _.pick(options, 'method', 'timeout', 'maxRedirects');
+
+  // If an explicit method was not specified on the options, then use the
+  // method of the inbound request to the proxy.
+  if (!requestOptions.method) {
+    requestOptions.method = req.method;
+  }
+
+  // Ensure that passed in options for timeout and maxRedirects cannot exceed
+  // the platform imposed limits (if defined).
+  if (_.isObject(limits) === true) {
+    if (_.isNumber(limits.timeout)) {
+      if (_.isNumber(options.timeout) === false || options.timeout &gt; limits.timeout) {
+        requestOptions.timeout = limits.timeout;
+      }
+    }
+    if (_.isNumber(limits.maxRedirects)) {
+      if (_.isNumber(options.maxRedirects) === false ||
+        options.maxRedirects &gt; limits.maxRedirects) {
+        requestOptions.maxRedirects = limits.maxRedirects;
+      }
+    }
+  }
+
+  // Extend the incoming query with any additional parameters specified in the options
+  if (_.isObject(options.query)) {
+    _.extend(req.query, options.query);
+  }
+
+  var parsedUrl = parseUrl(options.url);
+
+  // Compile the path expression of the originUrl
+  var compiledPath = pathToRegexp.compile(parsedUrl.path);
+
+  // Need to decode the path as splat params like 'path/*' will result in an encoded forward slash
+  // like http://someapi.com/v1/path1%2Fpath2.
+  var pathname = decodeURIComponent(compiledPath(_.extend({}, req.params, options.params)));
+
+  // Substitute the actual values using both those from the incoming
+  // params as well as those configured in the options. Values in the
+  // options take precedence.
+
+  // If options.originalQuery is true, ignore the above and just
+  // use the original raw querystring as the search
+
+  requestOptions.url = formatUrl(_.extend({
+    protocol: parsedUrl.protocol,
+    host: parsedUrl.host,
+    pathname: pathname
+  }, options.originalQuery ?
+    {search: req.url.replace(/^.+\?/, '')} :
+    {query: _.extend({}, querystring.parse(parsedUrl.query), req.query, options.query)}
+  ));
+
+  requestOptions.headers = {};
+
+  // Passthrough headers
+  _.each(req.headers, function(value, key) {
+    if (shouldPassthroughHeader(key)) {
+      requestOptions.headers[key] = value;
+    }
+  });
+
+  // Forward the IP of the originating request. This is de-facto proxy behavior.
+  if (req.ip) {
+    requestOptions.headers['x-forwarded-for'] = req.ip;
+  }
+
+  if (req.headers &amp;&amp; req.headers.host) {
+    var hostSplit = req.headers.host.split(':');
+    var host = hostSplit[0];
+    var port = hostSplit[1];
+
+    if (port) {
+      requestOptions.headers['x-forwarded-port'] = port;
+    }
+
+    requestOptions.headers['x-forwarded-host'] = host;
+  }
+
+  requestOptions.headers['x-forwarded-proto'] = req.secure ? 'https' : 'http';
+
+  // Default to accepting gzip encoding
+  if (!requestOptions.headers['accept-encoding']) {
+    requestOptions.headers['accept-encoding'] = 'gzip';
+  }
+
+  // Inject additional headers from the options
+  if (_.isObject(options.headers)) {
+    _.extend(requestOptions.headers, options.headers);
+  }
+
+  // Override the user-agent
+  if (options.userAgent) {
+    requestOptions.headers['user-agent'] = options.userAgent;
+  }
+
+  return requestOptions;
+
+  function shouldPassthroughHeader(header) {
+    if (_.includes(BLOCK_HEADERS, header) === true) return false;
+    if (options.cache &amp;&amp; _.includes(CACHE_HEADERS, header) === true) return false;
+
+    return true;
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.toString" id="apidoc.element.express-request-proxy.toString">
+        function <span class="apidocSignatureSpan">express-request-proxy.</span>toString
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">toString = function () {
+    return text;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+	+ process.env.SOMEAPI_PASSSWORD;
+
+app.post("/api/:resource", requestProxy({
+	cache: redis.createClient(),
+	cacheMaxAge: 60,
+	url: "https://someapi.com/api/:resource",
+	headers: {
+		Authorization: "Basic " + new Buffer(usernamePassword).<span class="apidocCodeKeywordSpan">toString</span>('base64
+')
+	}
+}));
+~~~
+
+
+#### Logged-In User Properties
+Sometimes it's necessary to pass attributes of the current logged in user (on the server) into the request to the remote endpoint
+ as headers, query params, etc. Rather than passing environment variables, simply specify the desired user properties.
+...</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.express-request-proxy.request_options" id="apidoc.module.express-request-proxy.request_options">module express-request-proxy.request_options</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.request_options.request_options" id="apidoc.element.express-request-proxy.request_options.request_options">
+        function <span class="apidocSignatureSpan">express-request-proxy.</span>request_options
+        <span class="apidocSignatureSpan">(req, options, limits)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">request_options = function (req, options, limits) {
+  var requestOptions = _.pick(options, 'method', 'timeout', 'maxRedirects');
+
+  // If an explicit method was not specified on the options, then use the
+  // method of the inbound request to the proxy.
+  if (!requestOptions.method) {
+    requestOptions.method = req.method;
+  }
+
+  // Ensure that passed in options for timeout and maxRedirects cannot exceed
+  // the platform imposed limits (if defined).
+  if (_.isObject(limits) === true) {
+    if (_.isNumber(limits.timeout)) {
+      if (_.isNumber(options.timeout) === false || options.timeout &gt; limits.timeout) {
+        requestOptions.timeout = limits.timeout;
+      }
+    }
+    if (_.isNumber(limits.maxRedirects)) {
+      if (_.isNumber(options.maxRedirects) === false ||
+        options.maxRedirects &gt; limits.maxRedirects) {
+        requestOptions.maxRedirects = limits.maxRedirects;
+      }
+    }
+  }
+
+  // Extend the incoming query with any additional parameters specified in the options
+  if (_.isObject(options.query)) {
+    _.extend(req.query, options.query);
+  }
+
+  var parsedUrl = parseUrl(options.url);
+
+  // Compile the path expression of the originUrl
+  var compiledPath = pathToRegexp.compile(parsedUrl.path);
+
+  // Need to decode the path as splat params like 'path/*' will result in an encoded forward slash
+  // like http://someapi.com/v1/path1%2Fpath2.
+  var pathname = decodeURIComponent(compiledPath(_.extend({}, req.params, options.params)));
+
+  // Substitute the actual values using both those from the incoming
+  // params as well as those configured in the options. Values in the
+  // options take precedence.
+
+  // If options.originalQuery is true, ignore the above and just
+  // use the original raw querystring as the search
+
+  requestOptions.url = formatUrl(_.extend({
+    protocol: parsedUrl.protocol,
+    host: parsedUrl.host,
+    pathname: pathname
+  }, options.originalQuery ?
+    {search: req.url.replace(/^.+\?/, '')} :
+    {query: _.extend({}, querystring.parse(parsedUrl.query), req.query, options.query)}
+  ));
+
+  requestOptions.headers = {};
+
+  // Passthrough headers
+  _.each(req.headers, function(value, key) {
+    if (shouldPassthroughHeader(key)) {
+      requestOptions.headers[key] = value;
+    }
+  });
+
+  // Forward the IP of the originating request. This is de-facto proxy behavior.
+  if (req.ip) {
+    requestOptions.headers['x-forwarded-for'] = req.ip;
+  }
+
+  if (req.headers &amp;&amp; req.headers.host) {
+    var hostSplit = req.headers.host.split(':');
+    var host = hostSplit[0];
+    var port = hostSplit[1];
+
+    if (port) {
+      requestOptions.headers['x-forwarded-port'] = port;
+    }
+
+    requestOptions.headers['x-forwarded-host'] = host;
+  }
+
+  requestOptions.headers['x-forwarded-proto'] = req.secure ? 'https' : 'http';
+
+  // Default to accepting gzip encoding
+  if (!requestOptions.headers['accept-encoding']) {
+    requestOptions.headers['accept-encoding'] = 'gzip';
+  }
+
+  // Inject additional headers from the options
+  if (_.isObject(options.headers)) {
+    _.extend(requestOptions.headers, options.headers);
+  }
+
+  // Override the user-agent
+  if (options.userAgent) {
+    requestOptions.headers['user-agent'] = options.userAgent;
+  }
+
+  return requestOptions;
+
+  function shouldPassthroughHeader(header) {
+    if (_.includes(BLOCK_HEADERS, header) === true) return false;
+    if (options.cache &amp;&amp; _.includes(CACHE_HEADERS, header) === true) return false;
+
+    return true;
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.express-request-proxy.toString" id="apidoc.module.express-request-proxy.toString">module express-request-proxy.toString</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.express-request-proxy.toString.toString" id="apidoc.element.express-request-proxy.toString.toString">
+        function <span class="apidocSignatureSpan">express-request-proxy.</span>toString
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function toString() { [native code] }</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+	+ process.env.SOMEAPI_PASSSWORD;
+
+app.post("/api/:resource", requestProxy({
+	cache: redis.createClient(),
+	cacheMaxAge: 60,
+	url: "https://someapi.com/api/:resource",
+	headers: {
+		Authorization: "Basic " + new Buffer(usernamePassword).<span class="apidocCodeKeywordSpan">toString</span>('base64
+')
+	}
+}));
+~~~
+
+
+#### Logged-In User Properties
+Sometimes it's necessary to pass attributes of the current logged in user (on the server) into the request to the remote endpoint
+ as headers, query params, etc. Rather than passing environment variables, simply specify the desired user properties.
+...</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
+</body></html>
