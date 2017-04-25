@@ -1,4 +1,7 @@
-# api documentation for  [express-request-proxy (v2.0.0)](https://github.com/4front/express-request-proxy)  [![npm package](https://img.shields.io/npm/v/npmdoc-express-request-proxy.svg?style=flat-square)](https://www.npmjs.org/package/npmdoc-express-request-proxy) [![travis-ci.org build-status](https://api.travis-ci.org/npmdoc/node-npmdoc-express-request-proxy.svg)](https://travis-ci.org/npmdoc/node-npmdoc-express-request-proxy)
+# npmdoc-express-request-proxy
+
+#### basic api documentation for  [express-request-proxy (v2.0.0)](https://github.com/4front/express-request-proxy)  [![npm package](https://img.shields.io/npm/v/npmdoc-express-request-proxy.svg?style=flat-square)](https://www.npmjs.org/package/npmdoc-express-request-proxy) [![travis-ci.org build-status](https://api.travis-ci.org/npmdoc/node-npmdoc-express-request-proxy.svg)](https://travis-ci.org/npmdoc/node-npmdoc-express-request-proxy)
+
 #### Intelligent http proxy Express middleware
 
 [![NPM](https://nodei.co/npm/express-request-proxy.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/express-request-proxy)
@@ -87,7 +90,8 @@
         "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/",
         "test-travis": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/"
     },
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "bin": {}
 }
 ```
 
